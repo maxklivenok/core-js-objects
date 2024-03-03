@@ -116,7 +116,7 @@ function isEmptyObject(obj) {
  *    console.log(immutableObj) => {a: 1, b: 2}
  */
 function makeImmutable(obj) {
-  Object.freeze(obj);
+  return Object.freeze(obj);
 }
 
 /**
@@ -245,8 +245,16 @@ function fromJSON(proto, json) {
  *      { country: 'Russia',  city: 'Saint Petersburg' }
  *    ]
  */
-function sortCitiesArray(/* arr */) {
-  throw new Error('Not implemented');
+function sortCitiesArray(arr) {
+  const order = (a, b) => {
+    if (a.country === b.country) {
+      if (a.city < b.city) return -1;
+      return 1;
+    }
+    if (a.country < b.country) return -1;
+    return 1;
+  };
+  return arr.sort(order);
 }
 
 /**
@@ -279,8 +287,17 @@ function sortCitiesArray(/* arr */) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  const map = new Map();
+  array.map((item) => {
+    if (map.has(keySelector(item))) {
+      map.get(keySelector(item)).push(valueSelector(item));
+    } else {
+      map.set(keySelector(item), [valueSelector(item)]);
+    }
+    return 0;
+  });
+  return map;
 }
 
 /**
@@ -338,32 +355,58 @@ function group(/* array, keySelector, valueSelector */) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  result: '',
+  lastElementOrder: 0,
+  element(value) {
+    return this.createElemet(value, 1, 'hasElement');
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return this.createElemet(`#${value}`, 2, 'hasID');
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return this.createElemet(`.${value}`, 3);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return this.createElemet(`[${value}]`, 4);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return this.createElemet(`:${value}`, 5);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return this.createElemet(`::${value}`, 6, 'hasPseudoElement');
+  },
+  combine(selector1, combinator, selector2) {
+    const resSelector = `${selector1.result} ${combinator} ${selector2.result}`;
+    const obj = Object.create(this, { result: { value: resSelector } });
+    return obj;
+  },
+  createElemet(value, curOrder, option = null) {
+    if (
+      (option === 'hasElement' && this.hasElement) ||
+      (option === 'hasID' && this.hasID) ||
+      (option === 'hasPseudoElement' && this.hasPseudoElement)
+    )
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    if (curOrder < this.lastElementOrder)
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    const obj = Object.create(this);
+    obj.result = this.result + value;
+    obj.lastElementOrder = curOrder;
+    if (option) obj[option] = true;
+    return obj;
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  stringify() {
+    return this.result;
   },
 };
 
